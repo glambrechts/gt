@@ -1,0 +1,131 @@
+#!/bin/bash
+
+
+CONFIG=~/.config/gt/
+
+
+function _add() {
+
+    ALIAS=$1
+
+    if [[ -f $CONFIG$ALIAS ]] ; then
+        echo "Error: alias '$ALIAS' already exists."
+        return 1
+    fi
+
+    if [[ "$ALIAS" == add || "$ALIAS" == 'remove' ||
+            "$ALIAS" == 'info' || "$ALIAS" == 'list' ]] ; then
+        echo "Error: aliases 'add', 'remove', 'info' and 'list' are forbidden."
+        return 1
+    fi
+
+    if [[ ${ALIAS:0:1} == '.' ]] ; then
+        echo "Error: aliases cannot start with '.'"
+        return 1
+    fi
+
+    pwd > $CONFIG$ALIAS
+}
+
+function _remove() {
+
+    ALIAS=$1
+
+    if [[ ! -f $CONFIG$ALIAS ]] ; then
+        echo "Error: alias '$ALIAS' does not exist."
+        return 1
+    fi
+
+    rm $CONFIG$ALIAS
+}
+
+function _info() {
+
+    ALIAS=$1
+
+    if [[ ! -f $CONFIG$ALIAS ]] ; then
+        echo "Error: alias '$ALIAS' does not exist."
+        return 1
+    fi
+
+    echo -n "$ALIAS -> "
+    cat $CONFIG$ALIAS
+}
+
+function _list() {
+
+    for a in $(ls $CONFIG) ; do
+        echo -n "$a -> "
+        cat $CONFIG$a
+    done
+
+    return 0
+}
+
+function _goto() {
+
+    ALIAS=$1
+
+    if [[ ! -f $CONFIG$ALIAS ]] ; then
+        echo "Error: alias '$ALIAS' does not exist."
+        return 1
+    fi
+
+    cd $(cat $CONFIG$ALIAS)
+}
+
+
+# Check usage
+if [[ $# -eq 0 ]] ; then
+
+    echo 'Usage: gt add ALIAS'
+    echo 'Usage: gt remove ALIAS'
+    echo 'Usage: gt info ALIAS'
+    echo ''
+    echo 'Usage: gt list'
+    echo ''
+    echo 'Usage: gt ALIAS'
+
+    return 1
+
+elif [[ $1 == 'add' ]] ; then
+
+    if [[ $# -ne 2 ]] ; then
+        echo 'Usage: gt add ALIAS'
+        return 1
+    fi
+
+    _add $2
+
+elif [[ $1 == 'remove' ]] ; then
+
+    if [[ $# -ne 2 ]] ; then
+        echo 'Usage: gt remove ALIAS'
+        return 1
+    fi
+
+    _remove $2
+
+elif [[ $1 == 'info' ]] ; then
+
+    if [[ $# -ne 2 ]] ; then
+        echo 'Usage: gt info ALIAS'
+        return 1
+    fi
+
+    _info $2
+
+elif [[ $1 == 'list' ]] ; then
+
+    if [[ $# -ne 1 ]] ; then
+        echo 'Usage: gt list'
+        return 1
+    fi
+
+    _list
+
+elif [[ $# -eq 1 ]] ; then
+
+    _goto $1
+
+fi
