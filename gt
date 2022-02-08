@@ -1,14 +1,11 @@
 #!/bin/bash
 
 
-CONFIG=~/.config/gt/
-
-
-function _add() {
+function _gt_add() {
 
     ALIAS=$1
 
-    if [[ -f $CONFIG$ALIAS ]] ; then
+    if [[ -f $CONFIG_DIR$ALIAS ]] ; then
         echo "Error: alias '$ALIAS' already exists."
         return 1
     fi
@@ -24,58 +21,147 @@ function _add() {
         return 1
     fi
 
-    pwd > $CONFIG$ALIAS
+    pwd > $CONFIG_DIR$ALIAS
 }
 
-function _remove() {
+function _gt_remove() {
 
     ALIAS=$1
 
-    if [[ ! -f $CONFIG$ALIAS ]] ; then
+    if [[ ! -f $CONFIG_DIR$ALIAS ]] ; then
         echo "Error: alias '$ALIAS' does not exist."
         return 1
     fi
 
-    rm $CONFIG$ALIAS
+    rm $CONFIG_DIR$ALIAS
 }
 
-function _info() {
+function _gt_info() {
 
     ALIAS=$1
 
-    if [[ ! -f $CONFIG$ALIAS ]] ; then
+    if [[ ! -f $CONFIG_DIR$ALIAS ]] ; then
         echo "Error: alias '$ALIAS' does not exist."
         return 1
     fi
 
-    echo -n "$ALIAS -> "
-    cat $CONFIG$ALIAS
+    read -r target_directory < $CONFIG_DIR$ALIAS
+    echo "$ALIAS -> $target_directory"
 }
 
-function _list() {
+function _gt_list() {
 
-    for a in $(ls $CONFIG) ; do
-        echo -n "$a -> "
-        cat $CONFIG$a
+    for alias_i in $(ls $CONFIG_DIR) ; do
+        read -r target_directory < $CONFIG_DIR$alias_i
+        echo "$alias_i -> $target_directory"
     done
 
     return 0
 }
 
-function _goto() {
+function _gt_config() {
+
+    KEY=$1
+    VALUE=$2
+
+    if [[ "$KEY" == 'tmux' ]] ; then
+        if [[ "$VALUE" != 'on' && "$VALUE" != 'off' ]] ; then
+            echo 'Usage: gt config tmux {on, off}'
+            return 1
+        fi
+
+        config=$(cat $CONFIG_DIR.settings.yml)
+        config=$(echo $config | sed -r "s/tmux: (off|on)/tmux: $VALUE/")
+        echo $config > $CONFIG_DIR.settings.yml
+
+        return 0
+    fi
+
+    return 0
+}
+
+function _gt_tmux() {
+
+    config_line=$(cat $CONFIG_DIR.settings.yml | grep '^tmux: \(on\|off\)')
+
+    if [[ $config_line == '' ]] ; then
+        echo 'Error: no tmux configuration set'
+        return 0
+    fi
+
+    echo $config_line | grep 'on' &> /dev/null
+
+    if [[ $? -eq 0 ]] ; then
+        return 1
+    else
+        return 0
+    fi
+}
+
+function _gt_goto() {
 
     ALIAS=$1
 
-    if [[ ! -f $CONFIG$ALIAS ]] ; then
+    if [[ ! -f $CONFIG_DIR$ALIAS ]] ; then
         echo "Error: alias '$ALIAS' does not exist."
         return 1
     fi
 
-    cd $(cat $CONFIG$ALIAS)
+    read -r target_directory < $CONFIG_DIR$ALIAS
+
+    _gt_tmux
+    if [[ $? -eq 1 ]] ; then
+
+        tmux has-session -t $ALIAS &> /dev/null
+
+        if [[ $? -ne 0 ]] ; then
+            (cd $target_directory; tmux new -s $ALIAS -d)
+        fi
+
+        if [[ -n $TMUX ]] ; then
+            tmux switch-client -t $ALIAS
+        else
+            tmux attach -t $ALIAS
+        fi
+
+    else
+        cd $target_directory
+    fi
 }
 
 
-# Check usage
+# If no configuration directory set, create one
+
+CONFIG_DIR_FILE=$(dirname "$0")'/.CONFIG'
+
+if [[ ! -f $CONFIG_DIR_FILE ]] ; then
+
+    echo -ne 'Choose gt config directory \e[0;37m(~/.config/gt)\e[0m: '
+
+    read CONFIG_DIR
+    if [[ "$CONFIG_DIR" == '' ]] ; then
+        CONFIG_DIR=~/.config/gt
+    fi
+    CONFIG_DIR=${CONFIG_DIR/#\~/$HOME}
+    CONFIG_DIR=${CONFIG_DIR%/}'/'
+
+    mkdir -p $CONFIG_DIR &> /dev/null
+    touch $CONFIG_DIR.settings.yml &> /dev/null
+    if [[ $? -ne 0 ]] ; then
+        echo "Unable to use configuration directory $CONFIG_DIR"
+        return 1
+    fi
+
+    echo $CONFIG_DIR > $CONFIG_DIR_FILE
+    echo 'tmux: off' > $CONFIG_DIR.settings.yml
+
+else
+    read -r CONFIG_DIR < $CONFIG_DIR_FILE
+fi
+
+
+# Parse command and check usage
+
 if [[ $# -eq 0 ]] ; then
 
     echo 'Usage: gt add ALIAS'
@@ -83,6 +169,8 @@ if [[ $# -eq 0 ]] ; then
     echo 'Usage: gt info ALIAS'
     echo ''
     echo 'Usage: gt list'
+    echo ''
+    echo 'Usage: gt config KEY VALUE'
     echo ''
     echo 'Usage: gt ALIAS'
 
@@ -95,7 +183,7 @@ elif [[ $1 == 'add' ]] ; then
         return 1
     fi
 
-    _add $2
+    _gt_add $2
 
 elif [[ $1 == 'remove' ]] ; then
 
@@ -104,7 +192,7 @@ elif [[ $1 == 'remove' ]] ; then
         return 1
     fi
 
-    _remove $2
+    _gt_remove $2
 
 elif [[ $1 == 'info' ]] ; then
 
@@ -113,7 +201,7 @@ elif [[ $1 == 'info' ]] ; then
         return 1
     fi
 
-    _info $2
+    _gt_info $2
 
 elif [[ $1 == 'list' ]] ; then
 
@@ -122,10 +210,23 @@ elif [[ $1 == 'list' ]] ; then
         return 1
     fi
 
-    _list
+    _gt_list
+
+elif [[ $1 == 'config' ]] ; then
+
+    if [[ $# -ne 3 || ( "$2" != 'tmux' ) ]] ; then
+        echo 'Usage: gt config KEY VALUE'
+        echo ''
+        echo 'KEYS'
+        echo '    tmux: {on, off}'
+        echo '          whether to start a tmux session upon goto'
+        return 1
+    fi
+
+    _gt_config $2 $3
 
 elif [[ $# -eq 1 ]] ; then
 
-    _goto $1
+    _gt_goto $1
 
 fi
