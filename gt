@@ -51,10 +51,14 @@ function _gt_info() {
 
 function _gt_list() {
 
+    list=''
+
     for alias_i in $(ls $CONFIG_DIR) ; do
         read -r target_directory < $CONFIG_DIR$alias_i
-        echo "$alias_i -> $target_directory"
+        list="$list\n$alias_i -> $target_directory"
     done
+
+    echo $list | column -t -s' '
 
     return 0
 }
