@@ -149,6 +149,8 @@ function _gt_tmux() {
 function _gt_goto() {
 
     ALIAS=$1
+    OPTION_TMUX=$2
+    OPTION_CURRENT=$3
 
     if [[ ! -f $CONFIG_DIR$ALIAS ]] ; then
         echo "Error: alias '$ALIAS' does not exist."
@@ -157,8 +159,13 @@ function _gt_goto() {
 
     read -r target_directory < $CONFIG_DIR$ALIAS
 
+    if [[ ! -d $target_directory ]] ; then
+        echo 'Error: target directory of alias '$ALIAS" no longer exists."
+        return 1
+    fi
+
     _gt_tmux
-    if [[ $? -eq 1 ]] ; then
+    if [[ ( ! $OPTION_CURRENT -eq 1 ) && ( $? || $OPTION_TMUX -eq 1 ) ]] ; then
 
         tmux has-session -t $ALIAS &> /dev/null
 
@@ -166,7 +173,9 @@ function _gt_goto() {
             (cd $target_directory; tmux new -s $ALIAS -d)
         fi
 
-        if [[ -n $TMUX ]] ; then
+        if [[ -n $TMUX && $(tmux display-message -p "#S") == "$ALIAS" ]] ; then
+            cd $target_directory
+        elif [[ -n $TMUX ]] ; then
             tmux switch-client -t $ALIAS
         else
             tmux attach -t $ALIAS
