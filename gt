@@ -2,55 +2,55 @@
 
 function _gt_add() {
 
-    ALIAS=$1
+    link=$1
 
-    if [[ -f $GT_CONFIG_DIR$ALIAS ]] ; then
-        echo "Error: alias '$ALIAS' already exists."
+    if [[ -f $GT_CONFIG_DIR$link ]] ; then
+        echo "Error: alias '$link' already exists."
         return 1
     fi
 
-    if [[ "$ALIAS" =~ 'add|remove|info' ]] ; then
+    if [[ "$link" =~ 'add|remove|info' ]] ; then
         echo "Error: aliases 'add', 'remove' and 'info' are forbidden."
         return 1
     fi
 
-    if [[ ${ALIAS:0:1} == '.' || ${ALIAS:0:1} == '-' ]] ; then
+    if [[ ${link:0:1} == '.' || ${link:0:1} == '-' ]] ; then
         echo "Error: aliases cannot start with '.' or '-'"
         return 1
     fi
 
-    pwd > $GT_CONFIG_DIR$ALIAS
+    pwd > $GT_CONFIG_DIR$link
 
-    echo "Alias '$ALIAS' successfully added."
+    echo "Alias '$link' successfully added."
     return 0
 }
 
 function _gt_remove() {
 
-    ALIAS=$1
+    link=$1
 
-    if [[ ! -f $GT_CONFIG_DIR$ALIAS ]] ; then
-        echo "Error: alias '$ALIAS' does not exist."
+    if [[ ! -f $GT_CONFIG_DIR$link ]] ; then
+        echo "Error: alias '$link' does not exist."
         return 1
     fi
 
-    rm $GT_CONFIG_DIR$ALIAS
+    rm $GT_CONFIG_DIR$link
 
-    echo "Alias '$ALIAS' successfully removed."
+    echo "Alias '$link' successfully removed."
     return 0
 }
 
 function _gt_info() {
 
-    ALIAS=$1
+    link=$1
 
-    if [[ ! -f $GT_CONFIG_DIR$ALIAS ]] ; then
-        echo "Error: alias '$ALIAS' does not exist."
+    if [[ ! -f $GT_CONFIG_DIR$link ]] ; then
+        echo "Error: alias '$link' does not exist."
         return 1
     fi
 
-    read -r target_directory < $GT_CONFIG_DIR$ALIAS
-    echo "$ALIAS -> $target_directory"
+    read -r target_directory < $GT_CONFIG_DIR$link
+    echo "$link -> $target_directory"
 }
 
 function _gt_clean() {
@@ -68,14 +68,14 @@ function _gt_list() {
 
     list=''
 
-    _gt_tmux
-    CONFIG_TMUX=$?
+    _gt_tmux_on
+    config_tmux_on=$?
 
     for alias_i in $(ls $GT_CONFIG_DIR) ; do
 
         read -r target_directory < $GT_CONFIG_DIR$alias_i
 
-        if [[ $CONFIG_TMUX -eq 1 ]] ; then
+        if [[ $config_tmux_on -eq 1 ]] ; then
 
             tmux has-session -t $alias_i &> /dev/null
             if [[ $? -ne 0 ]] ; then
@@ -108,17 +108,17 @@ function _gt_list() {
 
 function _gt_config() {
 
-    KEY=$1
-    VALUE=$2
+    key=$1
+    value=$2
 
-    if [[ "$KEY" == 'tmux' ]] ; then
-        if [[ "$VALUE" != 'on' && "$VALUE" != 'off' ]] ; then
+    if [[ "$key" == 'tmux' ]] ; then
+        if [[ "$value" != 'on' && "$value" != 'off' ]] ; then
             echo 'Usage: gt config tmux {on, off}'
             return 1
         fi
 
         config=$(cat $GT_CONFIG_DIR.settings.yml)
-        config=$(echo $config | sed -r "s/tmux: (off|on)/tmux: $VALUE/")
+        config=$(echo $config | sed -r "s/tmux: (off|on)/tmux: $value/")
         echo $config > $GT_CONFIG_DIR.settings.yml
 
         return 0
@@ -127,7 +127,7 @@ function _gt_config() {
     return 0
 }
 
-function _gt_tmux() {
+function _gt_tmux_on() {
 
     config_line=$(cat $GT_CONFIG_DIR.settings.yml | grep '^tmux: \(on\|off\)')
 
@@ -147,37 +147,37 @@ function _gt_tmux() {
 
 function _gt_goto() {
 
-    ALIAS=$1
-    OPTION_TMUX=$2
-    OPTION_CURRENT=$3
+    link=$1
+    option_tmux=$2
+    option_current=$3
 
-    if [[ ! -f $GT_CONFIG_DIR$ALIAS ]] ; then
-        echo "Error: alias '$ALIAS' does not exist."
+    if [[ ! -f $GT_CONFIG_DIR$link ]] ; then
+        echo "Error: alias '$link' does not exist."
         return 1
     fi
 
-    read -r target_directory < $GT_CONFIG_DIR$ALIAS
+    read -r target_directory < $GT_CONFIG_DIR$link
 
     if [[ ! -d $target_directory ]] ; then
-        echo 'Error: target directory of alias '$ALIAS" no longer exists."
+        echo 'Error: target directory of alias '$link" no longer exists."
         return 1
     fi
 
-    _gt_tmux
-    if [[ ( ! $OPTION_CURRENT -eq 1 ) && ( $? || $OPTION_TMUX -eq 1 ) ]] ; then
+    _gt_tmux_on
+    if [[ ( ! $option_current -eq 1 ) && ( $? || $option_tmux -eq 1 ) ]] ; then
 
-        tmux has-session -t $ALIAS &> /dev/null
+        tmux has-session -t $link &> /dev/null
 
         if [[ $? -ne 0 ]] ; then
-            (cd $target_directory; tmux new -s $ALIAS -d)
+            (cd $target_directory; tmux new -s $link -d)
         fi
 
-        if [[ -n $TMUX && $(tmux display-message -p "#S") == "$ALIAS" ]] ; then
+        if [[ -n $TMUX && $(tmux display-message -p "#S") == "$link" ]] ; then
             cd $target_directory
         elif [[ -n $TMUX ]] ; then
-            tmux switch-client -t $ALIAS
+            tmux switch-client -t $link
         else
-            tmux attach -t $ALIAS
+            tmux attach -t $link
         fi
 
     else
