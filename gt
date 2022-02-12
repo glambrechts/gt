@@ -69,12 +69,40 @@ function _gt_list() {
 
     list=''
 
+    _gt_tmux
+    CONFIG_TMUX=$?
+
     for alias_i in $(ls $CONFIG_DIR) ; do
+
         read -r target_directory < $CONFIG_DIR$alias_i
-        list="$list\n$alias_i -> $target_directory"
+
+        if [[ $CONFIG_TMUX -eq 1 ]] ; then
+
+            tmux has-session -t $alias_i &> /dev/null
+            if [[ $? -ne 0 ]] ; then
+                list+="\n[n] "
+            elif [[ -n $TMUX &&
+                    $(tmux display-message -p "#S") == "$alias_i" ]] ; then
+                list+="\n[x] "
+            else
+                list+="\n[-] "
+            fi
+        else
+            list+="\n"
+        fi
+
+        if [[ ! -d $target_directory ]] ; then
+            list+="$alias_i -> \e[0;90m$target_directory\e[0m"
+        else
+            list+="$alias_i -> $target_directory"
+        fi
     done
 
-    echo $list | column -t -s' '
+    if [[ "$list" == '' ]] ; then
+        echo "No alias registered. See 'gt --help' or 'gt -h' for help."
+    else
+        echo $list | column -t -s' ' | sed -r 's/^\[n\] /[ ] /'
+    fi
 
     return 0
 }
