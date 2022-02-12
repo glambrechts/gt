@@ -1,11 +1,10 @@
 #!/bin/bash
 
-
 function _gt_add() {
 
     ALIAS=$1
 
-    if [[ -f $CONFIG_DIR$ALIAS ]] ; then
+    if [[ -f $GT_CONFIG_DIR$ALIAS ]] ; then
         echo "Error: alias '$ALIAS' already exists."
         return 1
     fi
@@ -20,7 +19,7 @@ function _gt_add() {
         return 1
     fi
 
-    pwd > $CONFIG_DIR$ALIAS
+    pwd > $GT_CONFIG_DIR$ALIAS
 
     echo "Alias '$ALIAS' successfully added."
     return 0
@@ -30,12 +29,12 @@ function _gt_remove() {
 
     ALIAS=$1
 
-    if [[ ! -f $CONFIG_DIR$ALIAS ]] ; then
+    if [[ ! -f $GT_CONFIG_DIR$ALIAS ]] ; then
         echo "Error: alias '$ALIAS' does not exist."
         return 1
     fi
 
-    rm $CONFIG_DIR$ALIAS
+    rm $GT_CONFIG_DIR$ALIAS
 
     echo "Alias '$ALIAS' successfully removed."
     return 0
@@ -45,18 +44,18 @@ function _gt_info() {
 
     ALIAS=$1
 
-    if [[ ! -f $CONFIG_DIR$ALIAS ]] ; then
+    if [[ ! -f $GT_CONFIG_DIR$ALIAS ]] ; then
         echo "Error: alias '$ALIAS' does not exist."
         return 1
     fi
 
-    read -r target_directory < $CONFIG_DIR$ALIAS
+    read -r target_directory < $GT_CONFIG_DIR$ALIAS
     echo "$ALIAS -> $target_directory"
 }
 
 function _gt_clean() {
 
-    for file in $CONFIG_DIR/* ; do
+    for file in $GT_CONFIG_DIR/* ; do
         read -r target_directory < $file
         if [[ ! -d $target_directory ]] ; then
             rm $file
@@ -72,9 +71,9 @@ function _gt_list() {
     _gt_tmux
     CONFIG_TMUX=$?
 
-    for alias_i in $(ls $CONFIG_DIR) ; do
+    for alias_i in $(ls $GT_CONFIG_DIR) ; do
 
-        read -r target_directory < $CONFIG_DIR$alias_i
+        read -r target_directory < $GT_CONFIG_DIR$alias_i
 
         if [[ $CONFIG_TMUX -eq 1 ]] ; then
 
@@ -118,9 +117,9 @@ function _gt_config() {
             return 1
         fi
 
-        config=$(cat $CONFIG_DIR.settings.yml)
+        config=$(cat $GT_CONFIG_DIR.settings.yml)
         config=$(echo $config | sed -r "s/tmux: (off|on)/tmux: $VALUE/")
-        echo $config > $CONFIG_DIR.settings.yml
+        echo $config > $GT_CONFIG_DIR.settings.yml
 
         return 0
     fi
@@ -130,7 +129,7 @@ function _gt_config() {
 
 function _gt_tmux() {
 
-    config_line=$(cat $CONFIG_DIR.settings.yml | grep '^tmux: \(on\|off\)')
+    config_line=$(cat $GT_CONFIG_DIR.settings.yml | grep '^tmux: \(on\|off\)')
 
     if [[ $config_line == '' ]] ; then
         echo 'Error: no tmux configuration set'
@@ -152,12 +151,12 @@ function _gt_goto() {
     OPTION_TMUX=$2
     OPTION_CURRENT=$3
 
-    if [[ ! -f $CONFIG_DIR$ALIAS ]] ; then
+    if [[ ! -f $GT_CONFIG_DIR$ALIAS ]] ; then
         echo "Error: alias '$ALIAS' does not exist."
         return 1
     fi
 
-    read -r target_directory < $CONFIG_DIR$ALIAS
+    read -r target_directory < $GT_CONFIG_DIR$ALIAS
 
     if [[ ! -d $target_directory ]] ; then
         echo 'Error: target directory of alias '$ALIAS" no longer exists."
@@ -186,40 +185,26 @@ function _gt_goto() {
     fi
 }
 
-
-# If no configuration directory set, create one
-
-CONFIG_DIR_FILE=$(dirname "$0")'/.CONFIG'
-
-if [[ ! -f $CONFIG_DIR_FILE ]] ; then
-
-    echo -ne 'Choose gt config directory \e[0;90m(~/.config/gt)\e[0m: '
-
-    read CONFIG_DIR
-    if [[ "$CONFIG_DIR" == '' ]] ; then
-        CONFIG_DIR=~/.config/gt
-    fi
-    CONFIG_DIR=${CONFIG_DIR/#\~/$HOME}
-    CONFIG_DIR=${CONFIG_DIR%/}'/'
-
-    mkdir -p $CONFIG_DIR &> /dev/null
-    touch $CONFIG_DIR.settings.yml &> /dev/null
-    if [[ $? -ne 0 ]] ; then
-        echo "Unable to use configuration directory $CONFIG_DIR"
-        return 1
-    fi
-
-    echo $CONFIG_DIR > $CONFIG_DIR_FILE
-    echo 'tmux: off' > $CONFIG_DIR.settings.yml
-
-else
-    read -r CONFIG_DIR < $CONFIG_DIR_FILE
+# If no configuration directory set, use default configuration directory
+if [[ -z "$GT_CONFIG_DIR" ]] ; then
+    GT_CONFIG_DIR=~/.config/gt
 fi
 
+# Expand and clean path
+GT_CONFIG_DIR=${GT_CONFIG_DIR/#\~/$HOME}
+GT_CONFIG_DIR=${GT_CONFIG_DIR%/}'/'
+
+# Create directory and setting file
+if [[ ! -d $GT_CONFIG_DIR ]] ; then
+    mkdir $GT_CONFIG_DIR && touch $GT_CONFIG_DIR.settings.yml &> /dev/null
+    if [[ $? -ne 0 ]] ; then
+        echo "Unable to use configuration directory $GT_CONFIG_DIR"
+        return 1
+    fi
+    echo 'tmux: off' > $GT_CONFIG_DIR.settings.yml
+fi
 
 # Parse command and check usage
-
-
 if [[ "$@" =~ "-h"  || "$@" =~ "--help" ]] ; then
 
     echo 'Usage: gt'
@@ -346,7 +331,6 @@ else
     return gt
 
 fi
-
 
 _gt() {
     local cur files
