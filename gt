@@ -346,3 +346,12 @@ else
     return gt
 
 fi
+
+
+_gt() {
+    local cur files
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    files=$(ls ~/.config/gt)
+    COMPREPLY=( $(compgen -W "${files}" -- ${cur}) )
+}
