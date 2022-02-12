@@ -10,18 +10,20 @@ function _gt_add() {
         return 1
     fi
 
-    if [[ "$ALIAS" == add || "$ALIAS" == 'remove' ||
-            "$ALIAS" == 'info' || "$ALIAS" == 'list' ]] ; then
-        echo "Error: aliases 'add', 'remove', 'info' and 'list' are forbidden."
+    if [[ "$ALIAS" =~ 'add|remove|info' ]] ; then
+        echo "Error: aliases 'add', 'remove' and 'info' are forbidden."
         return 1
     fi
 
-    if [[ ${ALIAS:0:1} == '.' ]] ; then
-        echo "Error: aliases cannot start with '.'"
+    if [[ ${ALIAS:0:1} == '.' || ${ALIAS:0:1} == '-' ]] ; then
+        echo "Error: aliases cannot start with '.' or '-'"
         return 1
     fi
 
     pwd > $CONFIG_DIR$ALIAS
+
+    echo "Alias '$ALIAS' successfully added."
+    return 0
 }
 
 function _gt_remove() {
@@ -34,6 +36,9 @@ function _gt_remove() {
     fi
 
     rm $CONFIG_DIR$ALIAS
+
+    echo "Alias '$ALIAS' successfully removed."
+    return 0
 }
 
 function _gt_info() {
@@ -47,6 +52,17 @@ function _gt_info() {
 
     read -r target_directory < $CONFIG_DIR$ALIAS
     echo "$ALIAS -> $target_directory"
+}
+
+function _gt_clean() {
+
+    for file in $CONFIG_DIR/* ; do
+        read -r target_directory < $file
+        if [[ ! -d $target_directory ]] ; then
+            rm $file
+            echo "Alias '$(basename $file)' deleted."
+        fi
+    done
 }
 
 function _gt_list() {
@@ -140,7 +156,7 @@ CONFIG_DIR_FILE=$(dirname "$0")'/.CONFIG'
 
 if [[ ! -f $CONFIG_DIR_FILE ]] ; then
 
-    echo -ne 'Choose gt config directory \e[0;37m(~/.config/gt)\e[0m: '
+    echo -ne 'Choose gt config directory \e[0;90m(~/.config/gt)\e[0m: '
 
     read CONFIG_DIR
     if [[ "$CONFIG_DIR" == '' ]] ; then
@@ -166,19 +182,28 @@ fi
 
 # Parse command and check usage
 
-if [[ $# -eq 0 ]] ; then
 
+if [[ "$@" =~ "-h"  || "$@" =~ "--help" ]] ; then
+
+    echo 'Usage: gt'
     echo 'Usage: gt add ALIAS'
     echo 'Usage: gt remove ALIAS'
     echo 'Usage: gt info ALIAS'
-    echo ''
-    echo 'Usage: gt list'
+    echo 'Usage: gt clean'
     echo ''
     echo 'Usage: gt config KEY VALUE'
     echo ''
-    echo 'Usage: gt ALIAS'
+    echo 'Usage: gt [-htc] [--help] [--tmux] [--current] [ALIAS]'
 
-    return 1
+    if [[ $# -ne 1 ]] ; then
+        return 1
+    else
+        return 0
+    fi
+
+elif [[ $# -eq 0 ]] ; then
+
+    _gt_list
 
 elif [[ $1 == 'add' ]] ; then
 
@@ -207,30 +232,80 @@ elif [[ $1 == 'info' ]] ; then
 
     _gt_info $2
 
-elif [[ $1 == 'list' ]] ; then
+elif [[ $1 == 'clean' ]] ; then
 
     if [[ $# -ne 1 ]] ; then
-        echo 'Usage: gt list'
+        echo 'Usage: gt clean'
         return 1
     fi
 
-    _gt_list
+    _gt_clean
 
 elif [[ $1 == 'config' ]] ; then
 
     if [[ $# -ne 3 || ( "$2" != 'tmux' ) ]] ; then
+
         echo 'Usage: gt config KEY VALUE'
         echo ''
         echo 'KEYS'
         echo '    tmux: {on, off}'
         echo '          whether to start a tmux session upon goto'
+
         return 1
     fi
 
     _gt_config $2 $3
 
-elif [[ $# -eq 1 ]] ; then
+else
 
-    _gt_goto $1
+    if [[ $# -eq 1 ]] ; then
+        _gt_goto $1
+        return $?
+    fi
+
+    _option_help=0
+    _option_tmux=0
+    _option_current=0
+
+    [[ "$@" =~ "-h"  || "$@" =~ "--help" ]] && _option_help=1
+    [[ "$@" =~ "-t"  || "$@" =~ "--tmux" ]] && _option_tmux=1
+    [[ "$@" =~ "-c"  || "$@" =~ "--current" ]] && _option_current=1
+
+    if [[ $(($_option_help + $_option_tmux + $_option_current)) -gt 1 ]] ; then
+
+        echo 'Usage: options -h/--help, -t/--tmux and -c/--curent are ' \
+             'mutually exclusive.'
+
+        return 1
+
+    elif [[ $_option_help -eq 1 && $# -gt 1 ]] ; then
+
+        echo 'Usage: gt -h'
+        echo 'Usage: gt --help'
+
+        return 1
+
+    elif [[ $_option_tmux -eq 1 && $# -ne 2 ]] ; then
+
+        echo 'Usage: gt -t ALIAS'
+        echo 'Usage: gt --tmux ALIAS'
+
+        return 1
+
+    elif [[ $_option_current -eq 1 && $# -ne 2 ]] ; then
+
+        echo 'Usage: gt -c ALIAS'
+        echo 'Usage: gt --current ALIAS'
+
+        return 1
+
+    fi
+
+    while [[ ${1:0:1} == '-' ]] ; do
+        shift
+    done
+
+    _gt_goto $1 $_option_tmux $_option_current
+    return gt
 
 fi
