@@ -109,19 +109,34 @@ function _gt_list() {
 function _gt_config() {
 
     key=$1
-    value=$2
 
     if [[ "$key" == 'tmux' ]] ; then
-        if [[ "$value" != 'on' && "$value" != 'off' ]] ; then
-            echo 'Usage: gt config tmux {on, off}'
-            return 1
+
+        if [[ $# -eq 1 ]] ; then
+
+            config=$(cat $GT_CONFIG_DIR.settings.yml)
+            config=$(echo $config | grep '^tmux: ')
+            if [[ $? -ne 0 ]] ; then
+                echo 'Error: invalid configuration file'
+                return 1
+            else
+                echo $config
+            fi
+
+        else
+
+            value=$2
+
+            if [[ "$value" != 'on' && "$value" != 'off' ]] ; then
+                echo 'Usage: gt config tmux {on, off}'
+                return 1
+            fi
+
+            config=$(cat $GT_CONFIG_DIR.settings.yml)
+            config=$(echo $config | sed -r "s/tmux: (off|on)/tmux: $value/")
+            echo $config > $GT_CONFIG_DIR.settings.yml
+
         fi
-
-        config=$(cat $GT_CONFIG_DIR.settings.yml)
-        config=$(echo $config | sed -r "s/tmux: (off|on)/tmux: $value/")
-        echo $config > $GT_CONFIG_DIR.settings.yml
-
-        return 0
     fi
 
     return 0
@@ -272,9 +287,9 @@ elif [[ $1 == 'clean' ]] ; then
 
 elif [[ $1 == 'config' ]] ; then
 
-    if [[ $# -ne 3 || ( "$2" != 'tmux' ) ]] ; then
+    if [[ $# -eq 1 || $# -gt 3 || ! ( "$2" =~ 'tmux' ) ]] ; then
 
-        echo 'Usage: gt config KEY VALUE'
+        echo 'Usage: gt config KEY [VALUE]'
         echo ''
         echo 'KEYS'
         echo '    tmux: {on, off}'
