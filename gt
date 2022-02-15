@@ -9,8 +9,8 @@ function _gt_add() {
         return 1
     fi
 
-    if [[ "$link" =~ 'add|remove|info' ]] ; then
-        echo "Error: aliases 'add', 'remove' and 'info' are forbidden."
+    if [[ "$link" =~ 'add|remove|show|clean' ]] ; then
+        echo "Error: aliases 'add', 'remove', 'show', 'clean' are forbidden."
         return 1
     fi
 
@@ -40,7 +40,7 @@ function _gt_remove() {
     return 0
 }
 
-function _gt_info() {
+function _gt_show() {
 
     link=$1
 
@@ -208,14 +208,17 @@ fi
 if [[ "$@" =~ "-h"  || "$@" =~ "--help" ]] ; then
 
     echo 'Usage: gt'
+    echo 'Usage: gt show [ALIAS]'
+    echo ''
     echo 'Usage: gt add ALIAS'
     echo 'Usage: gt remove ALIAS'
-    echo 'Usage: gt info ALIAS'
     echo 'Usage: gt clean'
     echo ''
-    echo 'Usage: gt config KEY VALUE'
+    echo 'Usage: gt config KEY [VALUE]'
     echo ''
-    echo 'Usage: gt [-htc] [--help] [--tmux] [--current] [ALIAS]'
+    echo 'Usage: gt [-t/--tmux] [-c/--current] ALIAS'
+    echo ''
+    echo 'Usage: gt [-h/--help]'
 
     if [[ $# -ne 1 ]] ; then
         return 1
@@ -245,14 +248,18 @@ elif [[ $1 == 'remove' ]] ; then
 
     _gt_remove $2
 
-elif [[ $1 == 'info' ]] ; then
+elif [[ $1 == 'show' ]] ; then
 
-    if [[ $# -ne 2 ]] ; then
-        echo 'Usage: gt info ALIAS'
+    if [[ $# -gt 2 ]] ; then
+        echo 'Usage: gt show [ALIAS]'
         return 1
     fi
 
-    _gt_info $2
+    if [[ $# -eq 1 ]] ; then
+        _gt_list
+    else
+        _gt_show $2
+    fi
 
 elif [[ $1 == 'clean' ]] ; then
 
@@ -276,7 +283,11 @@ elif [[ $1 == 'config' ]] ; then
         return 1
     fi
 
-    _gt_config $2 $3
+    if [[ $# -eq 2 ]] ; then
+        _gt_config $2
+    else
+        _gt_config $2 $3
+    fi
 
 else
 
