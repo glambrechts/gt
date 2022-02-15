@@ -179,7 +179,10 @@ function _gt_goto() {
     fi
 
     _gt_tmux_on
-    if [[ ( ! $option_current -eq 1 ) && ( $? || $option_tmux -eq 1 ) ]] ; then
+    config_tmux_on=$?
+
+    if [[ ( $config_tmux_on -eq 1 || $option_tmux -eq 1 ) &&
+            ( $option_current -eq 0 ) ]] ; then
 
         tmux has-session -t $link &> /dev/null
 
@@ -354,7 +357,7 @@ else
     done
 
     _gt_goto $1 $_option_tmux $_option_current
-    return gt
+    return $?
 
 fi
 
