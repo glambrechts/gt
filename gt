@@ -100,7 +100,7 @@ function _gt_list() {
     if [[ "$list" == '' ]] ; then
         echo "No alias registered. See 'gt --help' or 'gt -h' for help."
     else
-        echo $list | column -t -s' ' | sed -r 's/^\[n\] /[ ] /'
+        echo -e $list | column -t -s' ' | sed -r 's/^\[n\] /[ ] /'
     fi
 
     return 0
@@ -214,9 +214,16 @@ GT_CONFIG_DIR=${GT_CONFIG_DIR%/}'/'
 
 # Create directory and setting file
 if [[ ! -d $GT_CONFIG_DIR ]] ; then
-    mkdir $GT_CONFIG_DIR && touch $GT_CONFIG_DIR.settings.yml &> /dev/null
+    mkdir $GT_CONFIG_DIR &> /dev/null
     if [[ $? -ne 0 ]] ; then
         echo "Unable to use configuration directory $GT_CONFIG_DIR"
+        return 1
+    fi
+fi
+if [[ ! -f $GT_CONFIG_DIR.settings.yml ]] ; then
+    touch $GT_CONFIG_DIR.settings.yml &> /dev/null
+    if [[ $? -ne 0 ]] ; then
+        echo "Unable to create configuration file $GT_CONFIG_DIR.settings.yml"
         return 1
     fi
     echo 'tmux: off' > $GT_CONFIG_DIR.settings.yml
@@ -360,11 +367,3 @@ else
     return $?
 
 fi
-
-_gt() {
-    local cur files
-    COMPREPLY=()
-    cur="${COMP_WORDS[COMP_CWORD]}"
-    files=$(ls ~/.config/gt)
-    COMPREPLY=( $(compgen -W "${files}" -- ${cur}) )
-}
