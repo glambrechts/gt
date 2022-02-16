@@ -9,8 +9,8 @@ function _gt_add() {
         return 1
     fi
 
-    if [[ "$link" =~ 'add|remove|show|clean' ]] ; then
-        echo "Error: aliases 'add', 'remove', 'show', 'clean' are forbidden."
+    if [[ "$link" =~ 'add|remove|show|clean|config' ]] ; then
+        echo "Error: aliases 'add', 'remove', 'show', 'clean' and 'config' are forbidden."
         return 1
     fi
 
