@@ -9,7 +9,7 @@ With `gt` (<u>g</u>o <u>t</u>o), fly in the terminal, with completion.
 
 ## Example
 
-TODO: GIF
+![gt-gif](gt.gif)
 
 ```
 > article % gt add belief
