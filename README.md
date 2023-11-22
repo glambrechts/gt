@@ -26,26 +26,29 @@ Alias 'exam' successfully removed.
 
 ## Usage
 
-- Add alias to the current directory with `gt add ALIAS`
-- Jump this this directory with `gt ALIAS`.
-- Remove this alias with `gt remove ALIAS`.
-- List aliases with `gt`.
+- List aliases with `gt` or `gt show`.
+- Add alias to the current directory with `gt add ALIAS`.
+- Jump to this directory with `gt ALIAS`.
+- Remove an alias with `gt remove ALIAS`.
+- Update an alias to the current directory with `gt update ALIAS`.
+- Rename an alias with `gt rename ALIAS ALIAS`.
+- Open your file browser to an alias with `gt open ALIAS`.
 - Remove all broken aliases with `gt clean`.
 
 ```sh
 > gt -h
-Usage: gt
+Usage: gt [-h/--help]
 Usage: gt show [ALIAS]
 
 Usage: gt add ALIAS
 Usage: gt remove ALIAS
+Usage: gt update ALIAS
+Usage: gt rename ALIAS ALIAS
+Usage: gt open ALIAS
 Usage: gt clean
 
-Usage: gt config KEY [VALUE]
-
 Usage: gt [-t/--tmux] [-c/--current] ALIAS
-
-Usage: gt [-h/--help]
+Usage: gt config KEY [VALUE]
 ```
 
 ## Tmux users
@@ -56,7 +59,7 @@ gt config tmux on
 ```
 
 Now, `gt ALIAS` joins a named tmux session directly at the directory
-pointed by `ALIAS`. It attaches if the session already exists !
+pointed by `ALIAS`. It attaches if the session already exists!
 
 You can force stay outside of tmux, or in the current tmux session, with the
 `-c` flag
@@ -69,12 +72,18 @@ session with the `-t` flag
 gt -t ALIAS
 ```
 
+When you changed directory within tmux, you can go back to the base directory
+with
+```sh
+gt .
+```
+
 ## Installation
 
 Download the executable with
 ```sh
 mkdir -p ~/.config/gt
-curl https://raw.githubusercontent.com/gsprd/gt/main/gt > ~/.config/gt/.gt
+curl https://raw.githubusercontent.com/glambrechts/gt/main/gt > ~/.config/gt/.gt
 ```
 
 Create the command by adding the following alias to your `~/.bashrc` /

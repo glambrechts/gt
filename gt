@@ -1,16 +1,27 @@
 #!/bin/bash
 
+COMMANDS=(
+    'add',
+    'clean',
+    'config',
+    'open',
+    'remove',
+    'rename',
+    'show',
+    'update',
+)
+
 function _gt_add() {
 
     link=$1
 
-    if [[ -f $GT_CONFIG_DIR$link ]] ; then
-        echo "Error: alias '$link' already exists."
+    if [[ ${COMMANDS[@]} =~ $link ]] ; then
+        echo "Error: '$link' is a gt command."
         return 1
     fi
 
-    if [[ "$link" =~ 'add|remove|show|clean|config' ]] ; then
-        echo "Error: aliases 'add', 'remove', 'show', 'clean' and 'config' are forbidden."
+    if [[ -f $GT_CONFIG_DIR$link ]] ; then
+        echo "Error: alias '$link' already exists."
         return 1
     fi
 
@@ -34,10 +45,62 @@ function _gt_remove() {
         return 1
     fi
 
-    rm $GT_CONFIG_DIR$link
+    /bin/rm $GT_CONFIG_DIR$link
 
     echo "Alias '$link' successfully removed."
     return 0
+}
+
+function _gt_update() {
+
+    link=$1
+
+    _gt_remove $1 && _gt_add $1
+
+    return 0
+
+}
+
+function _gt_rename() {
+
+    link=$1
+    new_link=$2
+
+    if [[ ! -f $GT_CONFIG_DIR$link ]] ; then
+        echo "Error: alias '$link' does not exist."
+        return 1
+    fi
+
+    mv $GT_CONFIG_DIR$link $GT_CONFIG_DIR$new_link
+    return 0
+
+}
+
+function _gt_open() {
+
+    link=$1
+
+    _gt_tmux_on
+    config_tmux_on=$?
+    if [[ $config_tmux_on -eq 1 && $link == '.' ]] ; then
+        current_session=$(tmux display-message -p "#S")
+        link=$current_session
+    fi
+
+    if [[ ! -f $GT_CONFIG_DIR$link ]] ; then
+        echo "Error: alias '$link' does not exist."
+        return 1
+    fi
+
+    read -r target_directory < $GT_CONFIG_DIR$link
+
+    if [[ ! -d $target_directory ]] ; then
+        echo 'Error: target directory of alias '$link" no longer exists."
+        return 1
+    fi
+
+    open $target_directory
+
 }
 
 function _gt_show() {
@@ -56,9 +119,12 @@ function _gt_show() {
 function _gt_clean() {
 
     for file in $GT_CONFIG_DIR/* ; do
+        if [[ ${COMMANDS[@]} =~ $(basename $file) ]] ; then
+            continue
+        fi
         read -r target_directory < $file
         if [[ ! -d $target_directory ]] ; then
-            rm $file
+            /bin/rm $file
             echo "Alias '$(basename $file)' deleted."
         fi
     done
@@ -72,6 +138,10 @@ function _gt_list() {
     config_tmux_on=$?
 
     for alias_i in $(ls $GT_CONFIG_DIR) ; do
+
+        if [[ ${COMMANDS[@]} =~ "$alias_i" ]] ; then
+            continue
+        fi
 
         read -r target_directory < $GT_CONFIG_DIR$alias_i
 
@@ -165,6 +235,13 @@ function _gt_goto() {
     option_tmux=$2
     option_current=$3
 
+    _gt_tmux_on
+    config_tmux_on=$?
+    if [[ $config_tmux_on -eq 1 && $link == '.' ]] ; then
+        current_session=$(tmux display-message -p "#S")
+        _gt_goto $current_session
+    fi
+
     if [[ ! -f $GT_CONFIG_DIR$link ]] ; then
         echo "Error: alias '$link' does not exist."
         return 1
@@ -176,9 +253,6 @@ function _gt_goto() {
         echo 'Error: target directory of alias '$link" no longer exists."
         return 1
     fi
-
-    _gt_tmux_on
-    config_tmux_on=$?
 
     if [[ ( $config_tmux_on -eq 1 || $option_tmux -eq 1 ) &&
             ( $option_current -eq 0 ) ]] ; then
@@ -230,21 +304,26 @@ if [[ ! -f $GT_CONFIG_DIR.settings.yml ]] ; then
     echo 'tmux: off' > $GT_CONFIG_DIR.settings.yml
 fi
 
+# Setup subcommand completion
+for subcommand in add remove rename show clean config ; do
+    touch $GT_CONFIG_DIR$subcommand
+done
+
 # Parse command and check usage
 if [[ "$@" =~ "-h"  || "$@" =~ "--help" ]] ; then
 
-    echo 'Usage: gt'
+    echo 'Usage: gt [-h/--help]'
     echo 'Usage: gt show [ALIAS]'
     echo ''
     echo 'Usage: gt add ALIAS'
     echo 'Usage: gt remove ALIAS'
+    echo 'Usage: gt update ALIAS'
+    echo 'Usage: gt rename ALIAS ALIAS'\'''
+    echo 'Usage: gt open ALIAS'
     echo 'Usage: gt clean'
     echo ''
-    echo 'Usage: gt config KEY [VALUE]'
-    echo ''
     echo 'Usage: gt [-t/--tmux] [-c/--current] ALIAS'
-    echo ''
-    echo 'Usage: gt [-h/--help]'
+    echo 'Usage: gt config KEY [VALUE]'
 
     if [[ $# -ne 1 ]] ; then
         return 1
@@ -264,6 +343,33 @@ elif [[ $1 == 'add' ]] ; then
     fi
 
     _gt_add $2
+
+elif [[ $1 == 'update' ]] ; then
+
+    if [[ $# -ne 2 ]] ; then
+        echo 'Usage: gt update ALIAS'
+        return 1
+    fi
+
+    _gt_update $2
+
+elif [[ $1 == 'rename' ]] ; then
+
+    if [[ $# -ne 3 ]] ; then
+        echo 'Usage: gt rename ALIAS ALIAS'\'''
+        return 1
+    fi
+
+    _gt_rename $2 $3
+
+elif [[ $1 == 'open' ]] ; then
+
+    if [[ $# -ne 2 ]] ; then
+        echo 'Usage: gt open ALIAS'
+        return 1
+    fi
+
+    _gt_open $2
 
 elif [[ $1 == 'remove' ]] ; then
 
